@@ -1,40 +1,26 @@
 const { GraphQLServer } = require('graphql-yoga');
+const { prisma } = require('./generated/prisma-client');
 
-let links = [{
-  id: 'link-0',
-  url: 'www.howtographql.com',
-  description: 'Fullstack tutorial for GraphQL'
-}]
-
-let idCount = links.length
+// removed links array and linkId because we're moving to a real db!
 
 const resolvers = {
   Query: {
     info: () => `This is the API of a Hackernews Clone`,
-    feed: () => links,
+    feed: (root, args, context, info) => {
+      return context.prisma.links()
+    },
     link: (parent, args) => {
       return links.find(link => link.id === args.id)
     }
   },
-  // deleted Links because you don't actually need resolvers for each of the 
-  // properties of the link graphql is smart enough to figure them out
   Mutation: {
-    post: (parent, args) => {
-
-      // create new link object with parameters
-      const link = {
-        id: `link-${idCount++}`,
-        description: args.description,
+    post: (parent, args, context, info) => {
+      return context.prisma.createLink({
         url: args.url,
-      }
-
-      // push it into the links array
-      links.push(link);
-
-      // return newly created link object
-      return link;
+        description: args.description
+      })
     },
-    updateLink: (parent, args) => {
+    updateLink: (parent, args,  context, info) => {
       const { id, description, url } = args;
 
       // find the matching link by matching link's id, get its position in the array
@@ -60,7 +46,7 @@ const resolvers = {
       // can't find link, returning null
       return null;
     },
-    deleteLink: (parent, args) => {
+    deleteLink: (parent, args,  context, info) => {
       const foundLink = links.find(link => link.id === args.id);
 
       if (foundLink) {
@@ -78,7 +64,8 @@ const resolvers = {
 
 const server = new GraphQLServer({
   typeDefs: './src/schema.graphql',
-  resolvers
+  resolvers,
+  context: { prisma }
 })
 
 server.start(() => console.log(`Server is running on http://localhost:4000`));
